@@ -1,5 +1,6 @@
 import time
 import subprocess
+import select
 from utils.shell import run
 from utils.logger import log
 from config import MEDIAMTX_LOG, BAN_THRESHOLD, BAN_TIME
@@ -27,40 +28,37 @@ class IntrusionMonitor:
             self._start_tail()
             return
 
+        # 논블로킹: 읽을 데이터 있을 때만 처리
         while True:
+            ready = select.select([self._proc.stdout], [], [], 0)
+            if not ready[0]:
+                break  # 읽을 데이터 없으면 바로 리턴
+
             line = self._proc.stdout.readline()
             if not line:
                 break
 
-            if "opened" not in line and "closed" not in line:
+            if "closed" not in line.lower():
                 continue
 
             try:
                 ip = None
                 for part in line.split():
-                    if part.count(".") == 3 and ":" in part:
+                    if part.count(".") == 3:
                         ip = part.split(":")[0]
                         break
                 if not ip:
                     continue
-
-                # 이미 차단된 IP는 무시
-                if ip in self.banned:
-                    continue
-
-                # 허용된 라즈베리파이 자신은 제외
-                if ip == "127.0.0.1":
+                if ip in self.banned or ip == "127.0.0.1":
                     continue
 
                 self.failed[ip] = self.failed.get(ip, 0) + 1
                 count = self.failed[ip]
-
-                print(f"[IoT-Sentry] 비정상 접근 감지 - IP: {ip} ({count}회)")
-                log(f"비정상 접근 {ip} ({count}회)")
+                print(f"[IoT-Sentry] 인증 실패 감지 - IP: {ip} ({count}회)")
+                log(f"인증 실패 {ip} ({count}회)")
 
                 if count >= BAN_THRESHOLD:
                     self.ban(ip)
-                    continue  # 차단 후 추가 로그 방지
 
             except Exception as e:
                 log(f"IntrusionMonitor 파싱 오류: {e}")
@@ -68,7 +66,7 @@ class IntrusionMonitor:
     def ban(self, ip):
         if ip in self.banned:
             return
-        print(f"[IoT-Sentry] IP 자동 차단: {ip} ({BAN_THRESHOLD}회 이상 감지)")
+        print(f"[IoT-Sentry] IP 자동 차단: {ip}")
         log(f"IP 차단: {ip}")
         run(f"iptables -I INPUT -s {ip} -j DROP")
         self.banned[ip] = time.time()
@@ -77,7 +75,7 @@ class IntrusionMonitor:
         now = time.time()
         for ip, t in list(self.banned.items()):
             if now - t > BAN_TIME:
-                print(f"[IoT-Sentry] IP 차단 해제: {ip} (10분 경과)")
+                print(f"[IoT-Sentry] IP 차단 해제: {ip}")
                 log(f"IP 차단 해제: {ip}")
                 run(f"iptables -D INPUT -s {ip} -j DROP")
                 del self.banned[ip]
