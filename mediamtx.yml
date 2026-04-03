@@ -1,0 +1,21 @@
+rtsp: true
+rtspAddress: :8554
+
+logDestinations:
+  - stdout
+  - file
+logFile: /home/pi/mediamtx.log
+
+paths:
+  stream:
+    readUser: admin
+    readPass: Admin1234 # 사용자 입력 비밀번호
+    publishUser: admin
+    publishPass: Admin1234
+
+protocols:
+  - tcp   # TLS 때문에 UDP 제거
+
+encryption: "yes"
+serverCert: /home/pi/server.crt
+serverKey: /home/pi/server.key
