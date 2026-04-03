@@ -9,7 +9,7 @@ logFile: /home/pi/mediamtx.log
 paths:
   stream:
     readUser: admin
-    readPass: Admin1234 # 사용자가 입력한 비밀번호
+    readPass: Admin1234 # 사용자 입력 비밀번호
     publishUser: admin
     publishPass: Admin1234
 
