@@ -1,8 +1,8 @@
 RTSP_PORT = 8554
-ALLOWED_NET = "172.20.10.8/32"
+ALLOWED_NET = "172.20.10.0/28"
 
 MEDIAMTX_CONF = "/home/pi/mediamtx.yml"
-MEDIAMTX_LOG = "/var/log/mediamtx.log"
+MEDIAMTX_LOG = "/home/pi/mediamtx.log"
 
 # 모듈별 실행 주기 (초)
 INTRUSION_INTERVAL = 5      # 침입 탐지 (빠르게)

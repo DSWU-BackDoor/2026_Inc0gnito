@@ -8,7 +8,7 @@ from utils.shell import run
 from utils.logger import log
 from config import MEDIAMTX_CONF
 
-AUTH_META = "/home/pi/iot-sentry/auth_meta.json"
+AUTH_META = "/home/pi/IoT-sentry/auth_meta.json"
 
 WEAK_PASSWORDS = [
     "1234", "12345", "123456", "password", "admin", "admin123",

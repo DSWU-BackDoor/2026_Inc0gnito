@@ -13,18 +13,40 @@ class EncryptionController:
             with open(MEDIAMTX_CONF) as f:
                 data = yaml.safe_load(f) or {}
 
-            # v1.3.0 미지원 필드 제거
-            changed = False
-            for field in ["rtspEncryption", "rtspServerCert", "rtspServerKey", "rtspsAddress"]:
-                if field in data:
-                    del data[field]
-                    changed = True
+            if data.get("encryption") == "yes":
+                return
 
-            if changed:
-                with open(MEDIAMTX_CONF, "w") as f:
-                    yaml.dump(data, f)
-                log("EncryptionController: 미지원 TLS 필드 제거 (v1.3.0 호환)")
-                run("systemctl restart mediamtx")
+            log("RTSP 암호화 미적용 감지")
+
+            # 인증서 없으면 생성
+            if not os.path.exists(CERT):
+                log("TLS 인증서 생성")
+                result = run(
+                    f'openssl req -x509 -newkey rsa:2048 -keyout {KEY} -out {CERT} '
+                    f'-days 365 -nodes -subj "/CN=raspberrypi"'
+                )
+                if not os.path.exists(CERT):
+                    log(f"인증서 생성 실패: {result}")
+                    return
+
+            # 미지원 필드 제거
+            for field in ["rtspEncryption", "rtspServerCert", "rtspServerKey", "rtspCert", "rtspKey"]:
+                data.pop(field, None)
+
+            # 암호화 설정 적용
+            data["encryption"] = "yes"
+            data["serverCert"] = CERT
+            data["serverKey"] = KEY
+
+            # protocols에서 udp, multicast 제거
+            protocols = data.get("protocols", ["udp", "multicast", "tcp"])
+            data["protocols"] = [p for p in protocols if p not in ("udp", "multicast")]
+
+            with open(MEDIAMTX_CONF, "w") as f:
+                yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+
+            log("TLS 암호화 설정 완료 → mediamtx 재시작")
+            run("pkill mediamtx; sleep 1; /home/pi/mediamtx /home/pi/mediamtx.yml &")
 
         except Exception as e:
             log(f"EncryptionController 오류: {e}")
